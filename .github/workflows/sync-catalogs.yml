@@ -1,7 +1,9 @@
 name: Sincronizar catálogos
 
 # Sincronización semanal de los perfiles habilitados (filters/*.yaml con catalog.enabled: true)
-# y ejecución manual de un perfil concreto. Credenciales en GitHub Secrets:
+# y ejecución manual de un perfil concreto. La ejecución programada es SIEMPRE una simulación
+# (--dry-run) salvo que se autorice expresamente con la variable de repositorio
+# MDBLIST_AUTO_SYNC=true (Settings → Secrets and variables → Actions → Variables). Credenciales en GitHub Secrets:
 #   MDBLIST_API_KEY (obligatoria para escribir), TMDB_API_KEY o TMDB_READ_ACCESS_TOKEN (recomendada).
 # Estado persistente (elementos gestionados por lista, overrides, revisión, historial) en la rama
 # `anime-catalog-state`; los datasets y la caché de metadatos en la caché de Actions.
@@ -72,12 +74,22 @@ jobs:
         env:
           INPUT_PROFILE: ${{ inputs.profile || 'all' }}
           INPUT_MODE: ${{ inputs.mode || 'config' }}
-          INPUT_DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
+          EVENT_NAME: ${{ github.event_name }}
+          MANUAL_DRY_RUN: ${{ inputs.dry_run }}
+          AUTO_SYNC: ${{ vars.MDBLIST_AUTO_SYNC }}
         run: |
           args=(sync-all --dir filters --report-dir reports)
           if [ "$INPUT_PROFILE" != "all" ]; then args+=(--profile "$INPUT_PROFILE"); fi
           if [ "$INPUT_MODE" != "config" ]; then args+=(--mode "$INPUT_MODE"); fi
-          if [ "$INPUT_DRY_RUN" = "true" ]; then
+          # Escribir en MDBList requiere autorización explícita: desmarcar dry_run en una ejecución
+          # manual o, para la programada, la variable MDBLIST_AUTO_SYNC=true.
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            [ "$MANUAL_DRY_RUN" = "false" ] && dry_run=false || dry_run=true
+          else
+            [ "$AUTO_SYNC" = "true" ] && dry_run=false || dry_run=true
+          fi
+          if [ "$dry_run" = "true" ]; then
+            echo "Simulación: no se modifica MDBList"
             args+=(--dry-run)
           elif [ -z "$MDBLIST_API_KEY" ]; then
             echo "::error::Falta el secret MDBLIST_API_KEY"; exit 1

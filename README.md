@@ -498,13 +498,18 @@ Workflows en `.github/workflows/`:
 - **`update-mappings.yml`**: diario; descarga datasets nuevos (ETag), valida, indexa.
 - **`sync-catalogs.yml`**: semanal (lunes) para todos los perfiles con `catalog.enabled: true`,
   y manual con `workflow_dispatch`: perfil (`anime-2020s`, … o `all`), modo (`config`, `append`,
-  `sync`) y `dry_run`.
+  `sync`) y `dry_run`. **La ejecución semanal solo simula** (`--dry-run`, sin tocar MDBList) salvo
+  que crees la variable de repositorio `MDBLIST_AUTO_SYNC` con valor `true`.
 
 Configuración:
 
 1. **Settings → Secrets and variables → Actions → New repository secret**:
    `MDBLIST_API_KEY` y `TMDB_API_KEY` (o `TMDB_READ_ACCESS_TOKEN`); opcional `TVDB_API_KEY`.
-2. **Actions → Sincronizar catálogos → Run workflow** (empieza con `dry_run` activado).
+2. **Actions → Sincronizar catálogos → Run workflow** (empieza con `dry_run` activado; desmárcalo
+   solo cuando quieras escribir de verdad).
+3. Opcional, para que la ejecución semanal escriba sin intervención: **Settings → Secrets and
+   variables → Actions → Variables → New repository variable** `MDBLIST_AUTO_SYNC` = `true`.
+   Sin esa variable, los lunes solo se genera el reporte de simulación.
 
 Seguridad y estado:
 
