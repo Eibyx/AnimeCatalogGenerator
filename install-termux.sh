@@ -1,9 +1,14 @@
 #!/data/data/com.termux/files/usr/bin/bash
 # Instalador de Anime Catalog Generator para Termux (Android). Sin root, sin Docker y sin Node.js.
 #
-#   bash install-termux.sh            instalación normal
+#   curl -fsSL https://raw.githubusercontent.com/Eibyx/AnimeCatalogGenerator/main/install-termux.sh | bash
+#   bash install-termux.sh            instalación normal (desde un clon o descargando el repositorio)
+#   bash install-termux.sh --update   actualiza el código (git pull) y reinstala
 #   bash install-termux.sh --dry-run  muestra los pasos sin ejecutar nada
 #   bash install-termux.sh --force    permite ejecutarlo fuera de Termux (pruebas)
+#
+# Si el script no se ejecuta desde un clon del repositorio, descarga
+# https://github.com/Eibyx/AnimeCatalogGenerator en ~/AnimeCatalogGenerator (o lo actualiza).
 #
 # Qué hace:
 #   1. Detecta Termux y comprueba la arquitectura.
@@ -19,16 +24,31 @@ set -euo pipefail
 
 DRY_RUN=0
 FORCE=0
+UPDATE=0
 for arg in "$@"; do
   case "$arg" in
     --dry-run) DRY_RUN=1 ;;
     --force) FORCE=1 ;;
+    --update) UPDATE=1 ;;
     -h|--help) sed -n '2,20p' "$0"; exit 0 ;;
     *) echo "Opción desconocida: $arg" >&2; exit 2 ;;
   esac
 done
 
-SRC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_URL="${ANIME_CATALOG_REPO:-https://github.com/Eibyx/AnimeCatalogGenerator.git}"
+REPO_REF="${ANIME_CATALOG_REF:-main}"
+SCRIPT_DIR=""
+if [ -n "${BASH_SOURCE[0]:-}" ] && [ -f "${BASH_SOURCE[0]}" ]; then
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+fi
+# ¿Se ejecuta desde un clon del proyecto? Si no (p. ej. `curl … | bash`), se descarga el repositorio.
+if [ -n "$SCRIPT_DIR" ] && grep -qs 'name = "anime-catalog-generator"' "$SCRIPT_DIR/pyproject.toml"; then
+  SRC_DIR="$SCRIPT_DIR"
+  NEED_CLONE=0
+else
+  SRC_DIR="${ANIME_CATALOG_SRC:-$HOME/AnimeCatalogGenerator}"
+  NEED_CLONE=1
+fi
 APP_HOME="${ANIME_CATALOG_HOME:-$HOME/.anime-catalog}"
 VENV="$APP_HOME/venv"
 PREFIX_DIR="${PREFIX:-/data/data/com.termux/files/usr}"
@@ -61,13 +81,30 @@ esac
 
 # ---------------------------------------------------------------- 2. paquetes del sistema
 say "Instalando paquetes del sistema (pkg)…"
-REQUIRED=(python clang make sqlite openssl libffi)
+REQUIRED=(python git clang make sqlite openssl libffi)
 OPTIONAL=(python-pip pkg-config libyaml binutils)  # según la versión del repositorio algunos no existen o ya vienen incluidos
 run pkg update -y
 run pkg install -y "${REQUIRED[@]}"
 for p in "${OPTIONAL[@]}"; do
   if [ "$DRY_RUN" = 1 ]; then run pkg install -y "$p"; else pkg install -y "$p" >/dev/null 2>&1 || warn "paquete opcional $p no disponible (no es necesario)"; fi
 done
+
+# ---------------------------------------------------------------- código fuente
+if [ "$NEED_CLONE" = 1 ]; then
+  if [ -d "$SRC_DIR/.git" ]; then
+    say "Actualizando el código en $SRC_DIR"
+    run git -C "$SRC_DIR" pull --ff-only
+  else
+    say "Descargando $REPO_URL ($REPO_REF) en $SRC_DIR"
+    run git clone --depth 1 --branch "$REPO_REF" "$REPO_URL" "$SRC_DIR"
+  fi
+elif [ "$UPDATE" = 1 ] && [ -d "$SRC_DIR/.git" ]; then
+  say "Actualizando el código (git pull)"
+  run git -C "$SRC_DIR" pull --ff-only
+fi
+if [ "$DRY_RUN" = 0 ] && [ ! -f "$SRC_DIR/pyproject.toml" ]; then
+  die "No se encontró el proyecto en $SRC_DIR (¿falló la descarga?)"
+fi
 
 # ---------------------------------------------------------------- 3. Python y SQLite
 PY="$(command -v python3 || command -v python || true)"

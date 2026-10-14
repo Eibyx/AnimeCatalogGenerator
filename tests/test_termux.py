@@ -42,11 +42,27 @@ def test_installer_dry_run_lists_all_steps(tmp_path):
     r = run([BASH, str(INSTALL), "--dry-run"], {"HOME": str(tmp_path)})
     assert r.returncode == 0, r.stderr
     out = r.stdout
-    for expected in ("pkg install -y python clang make sqlite openssl libffi", "python-pydantic-core", "-m venv --system-site-packages",
+    for expected in ("pkg install -y python git clang make sqlite openssl libffi", "python-pydantic-core", "-m venv --system-site-packages",
                      "ANDROID_API_LEVEL", "chmod 600", "/.anime-catalog/profiles/anime-2020s.yaml", "doctor", "pip install"):
         assert expected in out, expected
     assert "install --upgrade pip" not in out  # en Termux pip lo gestiona pkg
     assert "uvicorn[standard]" not in out
+
+
+def test_installer_downloads_repository_when_run_standalone(tmp_path):
+    # Simula `curl …/install-termux.sh | bash`: el script no está dentro de un clon.
+    alone = tmp_path / "solo"
+    alone.mkdir()
+    shutil.copy(INSTALL, alone / "install-termux.sh")
+    r = run([BASH, str(alone / "install-termux.sh"), "--dry-run"], {"HOME": str(tmp_path)})
+    assert r.returncode == 0, r.stderr
+    assert "git clone --depth 1 --branch main https://github.com/Eibyx/AnimeCatalogGenerator.git" in r.stdout
+    assert f"{tmp_path}/AnimeCatalogGenerator" in r.stdout
+    # Por stdin (curl | bash) también descarga el repositorio.
+    piped = subprocess.run([BASH, "-s", "--", "--dry-run"], input=INSTALL.read_text(), capture_output=True, text=True,
+                           env={**os.environ, "HOME": str(tmp_path)}, timeout=60, cwd=tmp_path)
+    assert piped.returncode == 0, piped.stderr
+    assert "https://github.com/Eibyx/AnimeCatalogGenerator.git" in piped.stdout
 
 
 def test_installer_refuses_outside_termux_without_force(tmp_path):

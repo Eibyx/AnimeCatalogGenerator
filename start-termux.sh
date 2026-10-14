@@ -1,7 +1,7 @@
 #!/data/data/com.termux/files/usr/bin/bash
 # Inicia la interfaz web de Anime Catalog Generator en Termux y muestra la dirección local.
 #
-#   bash start-termux.sh                 http://127.0.0.1:8765
+#   bash ~/AnimeCatalogGenerator/start-termux.sh   http://127.0.0.1:8765
 #   bash start-termux.sh --port 9000
 #   bash start-termux.sh --open          además abre el navegador
 #   bash start-termux.sh --no-wakelock   no pedir wake-lock

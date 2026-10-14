@@ -21,7 +21,14 @@ También tiene **interfaz gráfica** local (móvil y escritorio) que usa el mism
 anime-catalog ui          # → http://127.0.0.1:8765 (Chrome en Android, cualquier navegador moderno)
 ```
 
-Y funciona en **Android con Termux** (`bash install-termux.sh` y `bash start-termux.sh`).
+Y funciona en **Android con Termux**:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Eibyx/AnimeCatalogGenerator/main/install-termux.sh | bash
+bash ~/AnimeCatalogGenerator/start-termux.sh
+```
+
+Repositorio: <https://github.com/Eibyx/AnimeCatalogGenerator>
 
 ---
 
@@ -83,7 +90,8 @@ Reportes ──► consola, JSON, CSV, HTML (cada decisión con sus evidencias)
 Estructura:
 
 ```
-anime-catalog-generator/
+AnimeCatalogGenerator/
+├── .github/workflows/         test.yml · update-mappings.yml · sync-catalogs.yml
 ├── src/anime_catalog/
 │   ├── cli.py                 comandos Typer
 │   ├── config.py              entorno + esquema YAML estricto (Pydantic)
@@ -107,15 +115,13 @@ anime-catalog-generator/
 └── start-termux.sh            arranque de la interfaz en Termux
 ```
 
-Los workflows están en `.github/workflows/anime-catalog-*.yml` en la raíz del repositorio (GitHub
-solo los lee ahí).
-
 ## 2. Instalación
 
 Requisitos: **Python 3.12 o superior** (Windows, Linux o macOS).
 
 ```bash
-cd anime-catalog-generator
+git clone https://github.com/Eibyx/AnimeCatalogGenerator.git
+cd AnimeCatalogGenerator
 python -m venv .venv
 # Linux/macOS:
 source .venv/bin/activate
@@ -486,11 +492,11 @@ Antes de escribir siempre se leen los elementos actuales de la lista y se calcul
 
 ## 13. GitHub Actions
 
-Workflows en la raíz del repositorio:
+Workflows en `.github/workflows/`:
 
-- **`anime-catalog-test.yml`**: pruebas en Ubuntu y Windows con Python 3.12 y 3.13.
-- **`anime-catalog-update-mappings.yml`**: diario; descarga datasets nuevos (ETag), valida, indexa.
-- **`anime-catalog-sync.yml`**: semanal (lunes) para todos los perfiles con `catalog.enabled: true`,
+- **`test.yml`**: pruebas en Ubuntu y Windows con Python 3.12 y 3.13.
+- **`update-mappings.yml`**: diario; descarga datasets nuevos (ETag), valida, indexa.
+- **`sync-catalogs.yml`**: semanal (lunes) para todos los perfiles con `catalog.enabled: true`,
   y manual con `workflow_dispatch`: perfil (`anime-2020s`, … o `all`), modo (`config`, `append`,
   `sync`) y `dry_run`.
 
@@ -498,7 +504,7 @@ Configuración:
 
 1. **Settings → Secrets and variables → Actions → New repository secret**:
    `MDBLIST_API_KEY` y `TMDB_API_KEY` (o `TMDB_READ_ACCESS_TOKEN`); opcional `TVDB_API_KEY`.
-2. **Actions → Anime Catalog · sincronizar catálogos → Run workflow** (empieza con `dry_run` activado).
+2. **Actions → Sincronizar catálogos → Run workflow** (empieza con `dry_run` activado).
 
 Seguridad y estado:
 
@@ -683,18 +689,32 @@ Requisitos: Termux actualizado (se recomienda la versión de F-Droid o GitHub), 
 la app y los datos, y ≈1,5 GB adicionales solo si hay que compilar `pydantic-core` con Rust. No
 necesita root, Docker ni Node.js.
 
+Instalación en un solo paso (descarga el repositorio en `~/AnimeCatalogGenerator`):
+
 ```bash
-pkg install git
-git clone https://github.com/eibyx/jkanimenuvio.git
-cd jkanimenuvio/anime-catalog-generator
-bash install-termux.sh          # o: bash install-termux.sh --dry-run para ver los pasos
-bash start-termux.sh            # muestra http://127.0.0.1:8765 → ábrela en Chrome
+pkg update -y && pkg install -y curl
+curl -fsSL https://raw.githubusercontent.com/Eibyx/AnimeCatalogGenerator/main/install-termux.sh | bash
+bash ~/AnimeCatalogGenerator/start-termux.sh     # muestra http://127.0.0.1:8765 → ábrela en Chrome
 ```
+
+O clonando a mano:
+
+```bash
+pkg update -y && pkg install -y git
+git clone https://github.com/Eibyx/AnimeCatalogGenerator.git ~/AnimeCatalogGenerator
+cd ~/AnimeCatalogGenerator
+bash install-termux.sh          # o: bash install-termux.sh --dry-run para ver los pasos
+bash start-termux.sh
+```
+
+Actualizar más adelante: `bash ~/AnimeCatalogGenerator/install-termux.sh --update`.
 
 Qué hace el instalador (`install-termux.sh`):
 
-1. Detecta Termux (se niega a ejecutarse en otro sistema salvo `--force`).
-2. Instala con `pkg`: `python clang make sqlite openssl libffi` y, si existen, `python-pip
+1. Detecta Termux (se niega a ejecutarse en otro sistema salvo `--force`). Si no se ejecuta desde
+   un clon, descarga `https://github.com/Eibyx/AnimeCatalogGenerator` (rama `main`) en
+   `~/AnimeCatalogGenerator`, o lo actualiza con `git pull --ff-only` si ya existe.
+2. Instala con `pkg`: `python git clang make sqlite openssl libffi` y, si existen, `python-pip
    pkg-config libyaml binutils`.
 3. Comprueba Python ≥ 3.12 y SQLite ≥ 3.24.
 4. Crea un entorno virtual privado en `~/.anime-catalog/venv` (con `--system-site-packages`
